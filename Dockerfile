@@ -17,9 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
+RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 \
+    && echo "/usr/local/cuda/lib64/stubs" > /etc/ld.so.conf.d/cuda-stubs.conf \
+    && ldconfig
+
 RUN git clone --branch b4200 https://github.com/ggml-org/llama.cpp.git /workspace/llama.cpp \
     && cd /workspace/llama.cpp \
     && cmake -B build -DGGML_CUDA=ON -DLLAMA_CURL=OFF -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link,/usr/local/cuda/lib64/stubs -L/usr/local/cuda/lib64/stubs" \
     && cmake --build build --config Release --target llama-server -j"$(nproc)" \
     && mkdir -p /dist/bin /dist/lib \
     && cp build/bin/llama-server /dist/bin/ \
@@ -40,7 +45,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PARALLEL=8 \
     CACHE_TYPE_K=q8_0 \
     CACHE_TYPE_V=q8_0 \
-    API_KEY= \
     PATH=/usr/local/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}
 
